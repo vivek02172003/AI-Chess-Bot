@@ -15,7 +15,7 @@ BLACK = (0, 0, 0)
 LIGHT_BROWN = (240, 217, 181)
 DARK_BROWN = (181, 136, 99)
 
-# Load piece images
+# Load piece images and scale them
 PIECES = {}
 piece_names = {
     'p': 'black-pawn',
@@ -33,7 +33,8 @@ piece_names = {
 }
 
 for symbol, name in piece_names.items():
-    PIECES[symbol] = pygame.image.load(f'pieces-basic-png/{name}.PNG')
+    image = pygame.image.load(f'pieces-basic-png/{name}.PNG')
+    PIECES[symbol] = pygame.transform.scale(image, (SQUARE_SIZE, SQUARE_SIZE))  # Scale the image to fit the square
 
 # Set up display
 window = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -56,6 +57,17 @@ def draw_pieces(board):
             col = chess.square_file(square)
             window.blit(piece_img, pygame.Rect(col * SQUARE_SIZE, (7-row) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
+# Function to get user input for moves in CLI
+def get_move():
+    move = input("Enter your move (e.g., e2 e4): ").strip()
+    move = move.replace(" ", "")  # Remove spaces
+    try:
+        chess_move = chess.Move.from_uci(move)
+        return chess_move
+    except:
+        print("Invalid move format. Use standard algebraic notation (e.g., e2e4).")
+        return None
+
 def main():
     clock = pygame.time.Clock()
     board = chess.Board()
@@ -67,10 +79,19 @@ def main():
         draw_pieces(board)
         pygame.display.flip()
 
+        # Handle Pygame events (e.g., quitting the game)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
+        # Get and execute user move from the CLI
+        if not board.is_game_over():
+            move = get_move()
+            if move and move in board.legal_moves:
+                board.push(move)
+            else:
+                print("Illegal move or invalid input.")
+        
         clock.tick(60)
 
     pygame.quit()
