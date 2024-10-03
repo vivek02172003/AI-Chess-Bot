@@ -1,7 +1,7 @@
 import pygame
 import chess
 from chess_ai import find_best_move  # Import the AI function
-
+from mcts import mcts
 # Initialize Pygame
 pygame.init()
 
@@ -94,7 +94,7 @@ def main():
             
             # AI move after user's move
             if not board.is_game_over() and board.turn == chess.BLACK:
-                best_move = find_best_move(board, 3)
+                best_move = mcts(board, 25)
                 if best_move:
                     board.push(best_move)
 
