@@ -31,30 +31,16 @@ The purpose of this project is to develop an AI chess bot that can play chess ag
    ```
 2. Install the dependencies:
     ```
-      pip install -r requirements.txt
+    pip install -r requirements.txt
     ```
 
 ## Usage
-
-CLI Mode:
-To run the game in CLI mode, execute the following command in the root of project:
+To run the game, execute the following command in the root of project:
 
 ```bash
-python3 main.py
+python main.py
 ```
-
-Input your chess moves in UCI format, e.g., `e2e4`, and the AI will play in response.
-
-**TO DO**
-Pygame Mode:
-To run the game with the Pygame GUI:
-
-```bash
-python main.py --gui
-```
-
 Use your mouse to move the pieces on the board.
-**TO DO**
 
 ## Screenshots
 
