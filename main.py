@@ -118,7 +118,7 @@ def main():
                         
                         # AI move
                         if board.turn == chess.BLACK:
-                            best_move = find_best_move(board, 3, 5)
+                            best_move = find_best_move(board, 2, 5)
                             if best_move:
                                 board.push(best_move)
                     

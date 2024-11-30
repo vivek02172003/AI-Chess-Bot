@@ -5,7 +5,12 @@ import functools
 # Define constants
 MAX_DEPTH = 3  # Maximum depth for Iterative Deepening
 TIME_LIMIT = 5.0  # Time limit in seconds for move computation
+evaluation_count = 0
 
+piece_values = {
+        'p': -1, 'r': -5, 'n': -3, 'b': -3, 'q': -9, 'k': -100,
+        'P': 1, 'R': 5, 'N': 3, 'B': 3, 'Q': 9, 'K': 100
+    }
 # Opening book (stub)
 OPENING_BOOK = {
     # Opening moves for White
@@ -51,11 +56,10 @@ def get_opening_move(board):
     return None
 
 def evaluate_board(board):
+    global evaluation_count
+    evaluation_count += 1
     # Piece values (positive for White, negative for Black)
-    piece_values = {
-        'p': -1, 'r': -5, 'n': -3, 'b': -3, 'q': -9, 'k': -100,
-        'P': 1, 'R': 5, 'N': 3, 'B': 3, 'Q': 9, 'K': 100
-    }
+    
 
     # Development bonus weights
     development_bonus = {
@@ -124,10 +128,24 @@ def evaluate_board(board):
 
         # Piece safety: Penalize if the piece is under attack
         if is_piece_under_attack(board, square, piece.color):
-            if piece.color:  # White piece under attack
-                score -= 0.5 * piece_values.get(piece_symbol, 0)
-            else:  # Black piece under attack
-                score += 0.5 * piece_values.get(piece_symbol, 0)
+            attacking_pieces = [board.piece_at(sq) for sq in board.attackers(not piece.color, square)]
+            defending_pieces = [board.piece_at(sq) for sq in board.attackers(piece.color, square)]
+            
+            if attacking_pieces:
+                attacking_value = sum(2 if p.piece_type == chess.KING else abs(piece_values[p.symbol()]) for p in attacking_pieces)
+                defending_value = sum(2 if p.piece_type == chess.KING else abs(piece_values[p.symbol()]) for p in defending_pieces)
+                piece_value = abs(piece_values[piece.symbol()])
+                if piece.color:  # White piece under attack
+                    if attacking_value > defending_value:
+                        score -= 0.5 * piece_value  # Penalize if attackers are stronger
+                    else:
+                        score += 0.5 * piece_value  # Reward if defenders are stronger
+                else:  # Black piece under attack
+                    if attacking_value > defending_value:
+                        score += 0.5 * piece_value  # Penalize if attackers are stronger
+                    else:
+                        score -= 0.5 * piece_value  # Reward if defenders are stronger
+
 
     # Check bonus (Add some bonus for check)
     if board.is_check():
@@ -155,13 +173,23 @@ def order_moves(board, moves):
         score = 0
         # Capture moves are more valuable
         if board.is_capture(move):
-            score += 10
+            captured_piece = board.piece_at(move.to_square)
+            moving_piece = board.piece_at(move.from_square)
+            if captured_piece and moving_piece:
+                captured_value = abs(piece_values[captured_piece.symbol()])
+                moving_value = abs(piece_values[moving_piece.symbol()])
+                if moving_value < captured_value:
+                    score += 10  # Prioritize capturing more valuable pieces
+                # Check if the captured piece is defended
+                if not list(board.attackers(captured_piece.color, move.to_square)):
+                    score += 15  # Reward capturing free pieces
+        
 
         # Giving check is more valuable
         if board.gives_check(move):
-            score += 5
+            score += 2
         
-        # Penalize moves that place pieces in danger
+        # # Penalize moves that place pieces in danger
         if is_move_into_danger(board, move):
             score -= 40
 
@@ -182,51 +210,59 @@ def order_moves(board, moves):
                 score += 2
 
          # Check if a piece is under attack
+        # Reward moves that avoid danger
         if is_piece_under_attack(board, move.from_square, board.turn):
-            score -= 10  # Penalize for moving an attacked piece without defending it
+            moving_piece = board.piece_at(move.from_square)
+            attacking_pieces = [board.piece_at(sq) for sq in board.attackers(not board.turn, move.from_square)]
+            if attacking_pieces:
+                attacking_value = max(abs(piece_values[p.symbol()]) for p in attacking_pieces)
+                moving_value = abs(piece_values[moving_piece.symbol()])
+                if moving_value > attacking_value:
+                    score += 20  # Reward for moving a more valuable piece out of danger
+                elif moving_value == attacking_value:
+                    score += 0  # No reward for moving a piece of equal value out of danger
+                else:
+                    score += 10  # Smaller reward for moving a less valuable piece out of danger
 
-        # Prioritize moves that help defend a piece under attack
+        # Penalize moves that place a piece under attack by a less valuable piece
         if is_piece_under_attack(board, move.to_square, board.turn):
-            score += 15  # Move to defend an attacked piece
+            defending_piece = board.piece_at(move.from_square)
+            attacking_pieces = [board.piece_at(sq) for sq in board.attackers(not board.turn, move.to_square)]
+            if attacking_pieces:
+                attacking_value = max(abs(piece_values[p.symbol()]) for p in attacking_pieces)
+                defending_value = abs(piece_values[defending_piece.symbol()])
+                if defending_value > attacking_value:
+                    score -= 15  # Penalize for placing a more valuable piece under attack
+                else:
+                    score -= 5  # Smaller penalty for placing a less valuable piece under attack
         
         # Adjust score based on whose turn it is
-        if board.turn == chess.WHITE:
-            score *= 1  # White prefers positive scores
-        else:
-            score *= -1  # Black prefers negative scores (minimizing score)
+        # if board.turn == chess.WHITE:
+        #     score *= 1  # White prefers positive scores
+        # else:
+        #     score *= -1  # Black prefers negative scores (minimizing score)
 
         return score
     
     # Use functools.partial to pass the board to the move_score function
     return sorted(moves, key=functools.partial(move_score, board=board), reverse=True)
 
+transposition_table = {}
 
-# Quiescence search
-def quiescence_search(board, alpha, beta):
-    stand_pat = evaluate_board(board)
-    if stand_pat >= beta:
-        return beta
-    if alpha < stand_pat:
-        alpha = stand_pat
-    
-    for move in order_moves(board, board.legal_moves):
-        if board.is_capture(move):
-            board.push(move)
-            score = -quiescence_search(board, -beta, -alpha)
-            board.pop()
-            if score >= beta:
-                return beta
-            if score > alpha:
-                alpha = score
-    return alpha
-
-# Minimax with alpha-beta pruning and enhancements
 def minimax(board, depth, alpha, beta, is_maximizing):
+    board_fen = board.fen()  # Convert the board to its FEN string representation
+
+    # Check if the position is already in the transposition table
+    if board_fen in transposition_table:
+        return transposition_table[board_fen]
+
     if depth == 0 or board.is_game_over():
-        return quiescence_search(board, alpha, beta)
-    
+        eval = evaluate_board(board)
+        transposition_table[board_fen] = eval  # Store the result in the transposition table
+        return eval
+
     legal_moves = order_moves(board, board.legal_moves)
-    
+
     if is_maximizing:
         max_eval = float('-inf')
         for move in legal_moves:
@@ -237,6 +273,7 @@ def minimax(board, depth, alpha, beta, is_maximizing):
             alpha = max(alpha, eval)
             if beta <= alpha:
                 break
+        transposition_table[board_fen] = max_eval  # Store the result in the transposition table
         return max_eval
     else:
         min_eval = float('inf')
@@ -248,10 +285,13 @@ def minimax(board, depth, alpha, beta, is_maximizing):
             beta = min(beta, eval)
             if beta <= alpha:
                 break
+        transposition_table[board_fen] = min_eval  # Store the result in the transposition table
         return min_eval
 
 # Find best move using Iterative Deepening
 def find_best_move(board, max_depth, time_limit):
+    global evaluation_count
+    evaluation_count = 0 
     opening_move = get_opening_move(board)
     if opening_move:
         return opening_move
@@ -259,27 +299,23 @@ def find_best_move(board, max_depth, time_limit):
     start_time = time.time()
     best_move = None
     
-    for depth in range(1, max_depth + 1):
-        print(f"Searching at depth {depth}")
-        current_best_move = None
-        best_value = float('-inf')
+    # for depth in range(1, max_depth + 1):
+    # print(f"Searching at depth {depth}")
+    current_best_move = None
+    best_value = float('inf')
+    
+    for move in order_moves(board, board.legal_moves):
+        board.push(move)
+        move_value = minimax(board, max_depth - 1, float('-inf'), float('inf'), False)
+        board.pop()
         
-        for move in order_moves(board, board.legal_moves):
-            board.push(move)
-            move_value = minimax(board, depth - 1, float('-inf'), float('inf'), False)
-            board.pop()
-            
-            if move_value > best_value:
-                best_value = move_value
-                current_best_move = move
-        
-        # Update the best move found so far
-        if current_best_move:
-            best_move = current_best_move
-        
-        # Check if time limit exceeded
-        if time.time() - start_time > time_limit:
-            print("Time limit reached!")
-            break
+        if move_value < best_value:
+            best_value = move_value
+            current_best_move = move
+    
+    # Update the best move found so far
+    if current_best_move:
+        best_move = current_best_move
 
+    print("Evaluation count:", evaluation_count)
     return best_move
