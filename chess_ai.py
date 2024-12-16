@@ -235,12 +235,6 @@ def order_moves(board, moves):
                     score -= 15  # Penalize for placing a more valuable piece under attack
                 else:
                     score -= 5  # Smaller penalty for placing a less valuable piece under attack
-        
-        # Adjust score based on whose turn it is
-        # if board.turn == chess.WHITE:
-        #     score *= 1  # White prefers positive scores
-        # else:
-        #     score *= -1  # Black prefers negative scores (minimizing score)
 
         return score
     
@@ -289,24 +283,21 @@ def minimax(board, depth, alpha, beta, is_maximizing):
         return min_eval
 
 # Find best move using Iterative Deepening
-def find_best_move(board, max_depth, time_limit):
+def find_best_move(board, max_depth):
     global evaluation_count
     evaluation_count = 0 
     opening_move = get_opening_move(board)
     if opening_move:
         return opening_move
 
-    start_time = time.time()
     best_move = None
     
-    # for depth in range(1, max_depth + 1):
-    # print(f"Searching at depth {depth}")
     current_best_move = None
     best_value = float('inf')
     
     for move in order_moves(board, board.legal_moves):
         board.push(move)
-        move_value = minimax(board, max_depth - 1, float('-inf'), float('inf'), False)
+        move_value = minimax(board, max_depth - 1, float('-inf'), float('inf'), True)
         board.pop()
         
         if move_value < best_value:
