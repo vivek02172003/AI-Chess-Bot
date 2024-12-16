@@ -9,12 +9,11 @@
 6. [Credits](#credits)
 
 ## Introduction
-The purpose of this project is to develop an AI chess bot that can play chess against human opponents. The project will start with understanding the basics of chess and simple AI techniques, gradually advancing to more complex algorithms and optimizations. This chess bot will be implemented using Python, leveraging basic AI algorithms like Minimax and Alpha-Beta Pruning. By the end of this project, a solid understanding of chess rules, Python programming, and fundamental AI concepts will be attained.
+The purpose of this project was to develop an AI chess bot that can play chess against human opponents! Ive played chess every since I was young and I always wondered how chess bots worked. The project started with understanding the basics of chess and simple AI techniques, gradually advancing to more complex algorithms like Minimax with Alpha-Beta Pruning. The project is implemented using python, taking advantages of libraries such as Pygame and Python-Chess.
 
 ## Features
   - Easy-to-use interface for chess games.
-  - AI opponent using MCTS algorithm.
-  - Supports both CLI and graphical user interfaces (Pygame).
+  - AI opponent using Minimax algorithm with Alpha-Beta Pruning.
 
 ## Installation
 
@@ -40,7 +39,7 @@ To run the game, execute the following command in the root of project:
 ```bash
 python main.py
 ```
-Use your mouse to move the pieces on the board.
+Use your mouse to drag and drop the pieces on the board.
 
 ## Screenshots
 
